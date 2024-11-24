@@ -85,5 +85,56 @@ function awss_block_suspicious_queries() {
     }
 }
 
+// 8. Ochrana cez tokenizáciu požiadaviek
+add_action('init', 'awss_generate_request_token');
+function awss_generate_request_token()
+{
+    if (!is_user_logged_in()) {
+        if (!isset($_COOKIE['awss_request_token'])) {
+            $token = bin2hex(random_bytes(16));
+            setcookie('awss_request_token', $token, time() + 3600, COOKIEPATH, COOKIE_DOMAIN);
+        }
+    }
+}
+
+add_action('template_redirect', 'awss_verify_request_token');
+function awss_verify_request_token()
+{
+    $protected_paths = array('/wp-admin/', '/wp-login.php');
+
+    foreach ($protected_paths as $path) {
+        if (strpos($_SERVER['REQUEST_URI'], $path) !== false) {
+            $token = isset($_COOKIE['awss_request_token']) ? $_COOKIE['awss_request_token'] : '';
+            if (empty($token)) {
+                header('HTTP/1.1 403 Forbidden');
+                exit;
+            }
+        }
+    }
+}
+
+// 9. Detekcia charakteristických vzorcov požiadaviek
+add_action('init', 'awss_detect_scan_patterns');
+function awss_detect_scan_patterns()
+{
+    $request_uri = $_SERVER['REQUEST_URI'];
+    $scan_patterns = array(
+        '/wp-admin\/admin-ajax.php\?action=revslider_show_image&img=/',
+        '/wp-content\/themes\/.*\/(download|setup)\.php/', 
+        '/\.env/', 
+        '/composer\.json/', 
+        '/\/phpinfo\.php/', 
+        '/\.(bak|old|save|swp)$/', 
+    );
+
+    foreach ($scan_patterns as $pattern) {
+        if (preg_match($pattern, $request_uri)) {
+            awss_block_request('Detegovaný charakteristický vzorec požiadavky.');
+        }
+    }
+}
+
+
+
 ?>
 
