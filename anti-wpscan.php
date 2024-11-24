@@ -129,7 +129,8 @@ function awss_detect_scan_patterns()
 
     foreach ($scan_patterns as $pattern) {
         if (preg_match($pattern, $request_uri)) {
-            awss_block_request('Detegovaný charakteristický vzorec požiadavky.');
+            header('HTTP/1.1 403 Forbidden');
+            exit;
         }
     }
 }
